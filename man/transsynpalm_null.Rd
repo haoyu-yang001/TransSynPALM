@@ -71,8 +71,9 @@ Fits the two Syn-PALM null models that every variant is later scored
 against. The target fit uses the target individuals only. The pooled fit uses
 the whole cohort, with the target indicator and its interactions with the
 covariates in the design. The six variance components of each fit are
-estimated once, under the global null, by the method of moments in
-\code{\link[SynPALM:SynSurrG_ablation_estimate]{SynPALM::SynSurrG_ablation_estimate()}}.
+estimated once, under the global null, by the method of moments of
+Syn-PALM. The fit is the one used in the TransSynPALM paper, with the
+helpers of the SynPALM package.
 }
 \seealso{
 \code{\link[=transsynpalm]{transsynpalm()}}, \code{\link[=transsynpalm_scan]{transsynpalm_scan()}}, \code{\link[=transsynpalm_test]{transsynpalm_test()}}

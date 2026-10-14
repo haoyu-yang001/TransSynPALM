@@ -87,26 +87,39 @@ transsynpalm_test <- function(p_tar, p_de, pi01_min = "sqrtm", k = 50, batch_siz
 
 #' Select variants with false discovery rate or family-wise error control
 #'
-#' Applies a threshold to the TransSynPALM p-values of [transsynpalm_test()].
-#' FWER control is Bonferroni. FDR control is the Benjamini-Hochberg step-up
-#' procedure scaled by the estimated target-null proportion `pi00 + pi01`.
+#' The threshold search of the TransSynPALM paper (simulation section). The
+#' statistic of every variant is compared with a threshold found by bisection
+#' over the sorted statistics. For FDR the threshold keeps
+#' `(pi00 + pi01) F0(t) / (#{T < t} / m)` below `level`. For FWER it keeps
+#' `m F0(t)` below `level`. Here F0 is the composite null CDF.
 #'
-#' @param p A vector returned by [transsynpalm_test()].
+#' @param p_tar,p_de The p-values that were passed to [transsynpalm_test()].
+#' @param par The fitted mixture, `attr(p, "par")` of the [transsynpalm_test()]
+#'   result. If `NULL` it is refitted.
 #' @param level Target FDR or FWER.
 #' @param control `"FDR"` or `"FWER"`.
-#' @return Indices of the selected variants.
+#' @param pi01_min,k,p_floor As in [transsynpalm_test()]; used only when
+#'   `par` is `NULL`.
+#' @return Indices (into `p_tar`) of the selected variants.
 #' @export
-transsynpalm_select <- function(p, level = 0.05, control = c("FDR", "FWER")) {
+transsynpalm_select <- function(p_tar, p_de, par = NULL, level = 0.05, control = c("FDR", "FWER"),
+                                pi01_min = "sqrtm", k = 50, p_floor = 5.435712e-304) {
   control <- match.arg(control)
-  ok <- which(!is.na(p))
-  m <- length(ok)
-  if (!m) return(integer(0))
-  if (control == "FWER") return(ok[p[ok] <= level / m])
-  par <- attr(p, "par")
-  pi0 <- if (is.null(par)) 1 else min(1, par$pi00 + par$pi01)
-  o <- ok[order(p[ok])]
-  pass <- which(pi0 * m * p[o] / seq_len(m) <= level)
-  if (!length(pass)) integer(0) else sort(o[seq_len(max(pass))])
+  ok <- which(!is.na(p_tar) & !is.na(p_de))
+  p1 <- pmax(as.numeric(p_tar[ok]), p_floor)
+  p2 <- pmax(as.numeric(p_de[ok]), p_floor)
+  if (is.null(par)) par <- .trt_fit_par(p1, p2, k = k, pi01_min = pi01_min)
+  m  <- length(p1)
+  Ts <- .T_stat(p1, p2, par)
+  F00 <- function(t, par) .F00_h00(t, par$pi00, par$pi01, par$alpha1, par$alpha2, par$C1, par$C2)
+  F0 <- function(t) .estimate_F0_composite(t, p2, par, F00_fun = F00)
+  thr <- if (control == "FDR") function(t) (par$pi00 + par$pi01) * F0(t) / max(mean(Ts < t), 1 / m) - level
+         else                  function(t) F0(t) * m - level
+  o <- order(Ts); lo <- 1; hi <- m
+  while (hi - lo > 1) { mid <- floor((lo + hi) / 2); if (thr(Ts[o[mid]]) < 0) lo <- mid else hi <- mid }
+  t_s <- Ts[o[lo]]
+  sel <- if (thr(t_s) < 0) which(Ts <= t_s) else which(Ts < t_s)
+  ok[sel]
 }
 
 ## ---------------------------------------------------------------------
@@ -160,6 +173,26 @@ transsynpalm_select <- function(p, level = 0.05, control = c("FDR", "FWER")) {
   I  <- one(lo, ys) + one(ys, 0)
   val <- if (I > 0 && M + log(I) > -745) exp(M + log(I)) else 0
   .cdf01(val + re2)
+}
+
+## F0dot(t), F01(t) and the composite F0(t) used by the threshold search
+## (as in the analysis code's trt_select()).
+.estimate_F0dot <- function(t, p2_vec, par) {
+  s <- pmin(pmax(t / (par$pi01 / (par$C1 * par$alpha1) +
+                        par$pi00 / (par$C1 * par$C2 * par$alpha1 * par$alpha2) * p2_vec^(1 - par$alpha2)), 0), 1)
+  mean(s^(1 / (1 - par$alpha1)))
+}
+.estimate_F01 <- function(t, p2_vec, par, F00_fun) {
+  den <- par$pi01 + par$pi11
+  if (den <= 0) return(0)
+  val <- (.estimate_F0dot(t, p2_vec, par) - par$pi00 * F00_fun(t, par)) / den
+  pmin(pmax(val, 0), 1)
+}
+.estimate_F0_composite <- function(t, p2_vec, par, F00_fun) {
+  den <- par$pi00 + par$pi01
+  if (den <= 0) stop("pi00 + pi01 must be positive", call. = FALSE)
+  val <- (par$pi00 * F00_fun(t, par) + par$pi01 * .estimate_F01(t, p2_vec, par, F00_fun)) / den
+  pmin(pmax(val, 0), 1)
 }
 
 ## Composite null CDF evaluated at the statistics of one batch. p1, p2 are all

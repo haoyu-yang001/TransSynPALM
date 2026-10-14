@@ -35,7 +35,9 @@ test_that("the composite null keeps source-only signals out", {
   expect_equal(sum(p[1:200] < 5e-8), 0)
   expect_equal(sum(p[201:220] < 5e-8), 20)
   expect_named(attr(p, "par"), c("pi00", "pi01", "pi10", "pi11", "C1", "C2", "alpha1", "alpha2"))
-  expect_true(all(201:220 %in% transsynpalm_select(p, 0.05, "FWER")))
+  sel <- transsynpalm_select(p_tar, p_de, attr(p, "par"), 0.05, "FWER")
+  expect_true(all(201:220 %in% sel))
+  expect_false(any(1:200 %in% sel))
 })
 
 test_that("NA pairs stay NA", {

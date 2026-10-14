@@ -4,8 +4,9 @@
 #' against. The target fit uses the target individuals only. The pooled fit uses
 #' the whole cohort, with the target indicator and its interactions with the
 #' covariates in the design. The six variance components of each fit are
-#' estimated once, under the global null, by the method of moments in
-#' [SynPALM::SynSurrG_ablation_estimate()].
+#' estimated once, under the global null, by the method of moments of
+#' Syn-PALM. The fit is the one used in the TransSynPALM paper, with the
+#' helpers of the SynPALM package.
 #'
 #' @param Y Numeric phenotype of length `n`, `NA` where it is not measured.
 #'   Transform it before the call if needed (e.g. a rank-based inverse normal
@@ -78,22 +79,22 @@ transsynpalm_null <- function(Y, Yhat, X, target, grm, pool_interact = NULL,
   }
   lab_pool <- which(!is.na(Y))
   lab_tar  <- which(!is.na(Y[tar_pos]))
-  X_pool <- .clean_design(X_pool, lab_pool, "pooled")
-  X_tar  <- .clean_design(X[tar_pos, , drop = FALSE], lab_tar, "target")
+  X_pool <- .clean_design(X_pool)
+  X_tar  <- .clean_design(X[tar_pos, , drop = FALSE])
   if (verbose)
     message(sprintf("n = %d (target %d) | labeled %d (target %d) | %d families | design: pooled p = %d, target p = %d",
                     n, length(tar_pos), length(lab_pool), n_lab_tar, K, ncol(X_pool), ncol(X_tar)))
 
   ## ---- the two Syn-PALM fits -------------------------------------------
   t0 <- proc.time()[3]
-  s1_pool <- SynPALM::SynSurrG_ablation_estimate(list(X_all = X_pool, S = Yhat, Y_obs = Y, GRM = grm))
+  s1_pool <- .syn_fit(list(X_all = X_pool, S = Yhat, Y_obs = Y, GRM = grm))
   st_pool <- .ts_prepare(s1_pool, X_pool, seq_len(n), fam, K, D_A = D, label = "pool")
-  s1_tar  <- SynPALM::SynSurrG_ablation_estimate(list(X_all = X_tar, S = Yhat[tar_pos],
+  s1_tar  <- .syn_fit(list(X_all = X_tar, S = Yhat[tar_pos],
                                                       Y_obs = Y[tar_pos], GRM = grm_tar))
   st_tar  <- .ts_prepare(s1_tar, X_tar, tar_pos, fam, K, label = "tar")
   st_obs <- NULL
   if (obs) {
-    o_tar  <- SynPALM::ObsG_ablation_estimate(list(X_all = X_tar, S = Yhat[tar_pos],
+    o_tar  <- .obs_fit(list(X_all = X_tar, S = Yhat[tar_pos],
                                                    Y_obs = Y[tar_pos], GRM = grm_tar))
     st_obs <- .ts_prepare_obsg(o_tar, Y[tar_pos], tar_pos, fam, K, label = "obs tar")
   }
@@ -275,27 +276,13 @@ transsynpalm <- function(Y, Yhat, X, target, grm, G, pool_interact = NULL, obs =
   X
 }
 
-## Drop constant and aliased columns, first on all rows and then on the
-## labeled rows. The Syn-PALM fit needs a full-rank design on the labeled
-## rows (its betaX is a GLS fit there), so a column that is aliased among the
-## labeled individuals, e.g. an assessment centre with no labeled member, is
-## removed from the whole design, with a warning.
-.clean_design <- function(M, lab, what) {
-  keep_full_rank <- function(M, rows) {
-    sub <- M[rows, , drop = FALSE]
-    q <- qr(sub, tol = 1e-10)
-    M[, sort(q$pivot[seq_len(q$rank)]), drop = FALSE]
-  }
+## Drop constant and aliased columns over all rows of the analysis set, as the
+## analysis code does. A column that is aliased only among the labeled
+## individuals stays in the design; the fit drops it from the labeled-row part.
+.clean_design <- function(M) {
   M <- M[, apply(M, 2, function(z) length(unique(z)) > 1), drop = FALSE]
-  M <- keep_full_rank(M, seq_len(nrow(M)))
-  nc <- ncol(M)
-  const_lab <- apply(M[lab, , drop = FALSE], 2, function(z) length(unique(z)) <= 1)
-  M <- M[, !const_lab, drop = FALSE]
-  M <- keep_full_rank(M, lab)
-  if (ncol(M) < nc)
-    warning(sprintf("%s design: %d column(s) aliased among the labeled individuals were dropped",
-                    what, nc - ncol(M)), call. = FALSE)
-  M
+  q <- qr(M)
+  M[, q$pivot[seq_len(q$rank)], drop = FALSE]
 }
 
 ## First-chunk check: the phi layer and SynPALM's own score test are the same

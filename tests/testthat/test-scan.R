@@ -33,21 +33,18 @@ test_that("missing dosages are mean-imputed", {
   expect_false(anyNA(res$p_tar))
 })
 
-test_that("a covariate aliased among the labeled target individuals is dropped", {
+test_that("a covariate aliased among the labeled individuals stays in the design", {
   X <- sim$X
   X$site <- 0
-  lab_tar <- which(sim$target & !is.na(sim$Y))
   unl_tar <- which(sim$target & is.na(sim$Y))
   X$site[unl_tar[1:10]] <- 1
-  msgs <- character()
-  nul <- withCallingHandlers(
-    transsynpalm_null(sim$Y, sim$Yhat, X, sim$target, sim$grm,
-                      pool_interact = c("age", "sex"), verbose = FALSE),
-    warning = function(w) { msgs <<- c(msgs, conditionMessage(w)); invokeRestart("muffleWarning") })
-  ## site is constant among the labeled individuals of both analysis sets
-  expect_equal(sum(grepl("aliased", msgs)), 2)
-  expect_false("site" %in% nul$design_tar)
-  expect_false("site" %in% nul$design_pool)
+  nul <- suppressMessages(transsynpalm_null(sim$Y, sim$Yhat, X, sim$target, sim$grm,
+                                            pool_interact = c("age", "sex"), verbose = FALSE))
+  ## as in the analysis code: dropped from the labeled-row part only
+  expect_true("site" %in% nul$design_tar)
+  expect_equal(nul$st_tar$d_Y, ncol(nul$st_tar$X_obs) + 1)
+  res <- suppressMessages(transsynpalm_scan(nul, sim$G[, 1:10], verbose = FALSE))
+  expect_lt(max(abs(c(res$chk_tar, res$chk_pool)), na.rm = TRUE), 1e-8)
 })
 
 test_that("input errors are caught", {

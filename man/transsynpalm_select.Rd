@@ -4,20 +4,37 @@
 \alias{transsynpalm_select}
 \title{Select variants with false discovery rate or family-wise error control}
 \usage{
-transsynpalm_select(p, level = 0.05, control = c("FDR", "FWER"))
+transsynpalm_select(
+  p_tar,
+  p_de,
+  par = NULL,
+  level = 0.05,
+  control = c("FDR", "FWER"),
+  pi01_min = "sqrtm",
+  k = 50,
+  p_floor = 5.435712e-304
+)
 }
 \arguments{
-\item{p}{A vector returned by \code{\link[=transsynpalm_test]{transsynpalm_test()}}.}
+\item{p_tar, p_de}{The p-values that were passed to \code{\link[=transsynpalm_test]{transsynpalm_test()}}.}
+
+\item{par}{The fitted mixture, \code{attr(p, "par")} of the \code{\link[=transsynpalm_test]{transsynpalm_test()}}
+result. If \code{NULL} it is refitted.}
 
 \item{level}{Target FDR or FWER.}
 
 \item{control}{\code{"FDR"} or \code{"FWER"}.}
+
+\item{pi01_min, k, p_floor}{As in \code{\link[=transsynpalm_test]{transsynpalm_test()}}; used only when
+\code{par} is \code{NULL}.}
 }
 \value{
-Indices of the selected variants.
+Indices (into \code{p_tar}) of the selected variants.
 }
 \description{
-Applies a threshold to the TransSynPALM p-values of \code{\link[=transsynpalm_test]{transsynpalm_test()}}.
-FWER control is Bonferroni. FDR control is the Benjamini-Hochberg step-up
-procedure scaled by the estimated target-null proportion \code{pi00 + pi01}.
+The threshold search of the TransSynPALM paper (simulation section). The
+statistic of every variant is compared with a threshold found by bisection
+over the sorted statistics. For FDR the threshold keeps
+\verb{(pi00 + pi01) F0(t) / (#\{T < t\} / m)} below \code{level}. For FWER it keeps
+\verb{m F0(t)} below \code{level}. Here F0 is the composite null CDF.
 }

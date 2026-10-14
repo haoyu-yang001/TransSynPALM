@@ -74,7 +74,8 @@ res <- transsynpalm_scan(null, bed[, 1:10000])                  # any [, j]-able
 
 ## after all chromosomes are scanned and rbind-ed into `all_res`
 all_res$p_transsynpalm <- transsynpalm_test(all_res$p_tar, all_res$p_de, ncores = 16)
-sel <- transsynpalm_select(all_res$p_transsynpalm, level = 0.05, control = "FDR")
+sel <- transsynpalm_select(all_res$p_tar, all_res$p_de,
+                           par = attr(all_res$p_transsynpalm, "par"), level = 0.05, control = "FDR")
 ```
 
 ### Inputs
