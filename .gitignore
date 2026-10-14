@@ -1,0 +1,18 @@
+.Rproj.user
+.Rhistory
+.RData
+.DS_Store
+*.Rcheck/
+*.tar.gz
+
+# Individual-level data never goes into this repository; only simulated data.
+*.bed
+*.bim
+*.fam
+*.pgen
+*.pvar
+*.psam
+*.bgen
+*.sample
+*.rds
+*.rda

@@ -1,0 +1,37 @@
+Package: TransSynPALM
+Title: Transfer Learning with Synthetic Phenotype Assisted Linear Mixed Models
+Version: 0.1.0
+Authors@R: c(
+    person("Haoyu", "Yang", email = "haoyuyang@hsph.harvard.edu",
+           role = c("aut", "cre")),
+    person("Ruoyu", "Wang", role = "aut"),
+    person("Xihong", "Lin", email = "xlin@hsph.harvard.edu", role = "aut")
+    )
+Description: Genome-wide association testing in an under-represented target
+    population whose phenotype is measured in only a fraction of participants.
+    TransSynPALM fits two synthetic phenotype assisted linear mixed models
+    (Syn-PALM), one on the target population and one on the pooled
+    target-plus-source cohort. Unphenotyped participants enter through a
+    machine-learning synthetic phenotype used as a control variate. The pooled
+    estimator is decorrelated from the target-only one through their joint
+    family-level sandwich covariance. The two resulting p-values are combined
+    under a four-group composite null, so source-specific associations are not
+    reported as target associations.
+License: MIT + file LICENSE
+URL: https://github.com/haoyu-yang001/TransSynPALM
+BugReports: https://github.com/haoyu-yang001/TransSynPALM/issues
+Encoding: UTF-8
+Depends: R (>= 4.0.0)
+Imports:
+    Matrix,
+    methods,
+    parallel,
+    stats,
+    SynPALM
+Remotes:
+    haoyu-yang001/SynPALM
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
