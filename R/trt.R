@@ -54,8 +54,8 @@ transsynpalm_test <- function(p_tar, p_de, pi01_min = "sqrtm", k = 50, batch_siz
   p1 <- pmax(as.numeric(p_tar[ok]), p_floor)
   p2 <- pmax(as.numeric(p_de[ok]), p_floor)
   m <- length(p1)
-  if (m < 1000) stop("only ", m, " complete (p_tar, p_de) pairs; the composite null needs genome-wide input",
-                     call. = FALSE)
+  if (m <= k^2) stop("only ", m, " complete (p_tar, p_de) pairs; the tail fit uses the k * sqrt(m) smallest ",
+                     "p-values, so it needs more than k^2 = ", k^2, ". Pass genome-wide input.", call. = FALSE)
   if (m < 1e4) warning("only ", m, " complete pairs; the mixture estimate is unstable below about 10,000",
                        call. = FALSE)
   par <- .trt_fit_par(p1, p2, k = k, pi01_min = pi01_min)
@@ -225,6 +225,7 @@ transsynpalm_select <- function(p_tar, p_de, par = NULL, level = 0.05, control =
 ## smallest p-values.
 .trt_fit_par <- function(p_tar, p_de, k = 50, pi01_min = "sqrtm") {
   X <- cbind(p_tar, p_de)
+  if (nrow(X) <= k^2) stop("the tail fit needs more than k^2 = ", k^2, " variants", call. = FALSE)
   estws <- .null_estimation(X)
   eps <- if (identical(pi01_min, "sqrtm")) 1 / sqrt(nrow(X)) else as.numeric(pi01_min)
   if (estws$alpha01 < eps) {

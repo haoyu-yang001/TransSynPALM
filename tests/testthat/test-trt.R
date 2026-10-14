@@ -47,3 +47,7 @@ test_that("NA pairs stay NA", {
   expect_true(all(is.na(p[1:3])))
   expect_false(anyNA(p[-(1:3)]))
 })
+
+test_that("too few variants for the tail fit are refused", {
+  expect_error(transsynpalm_test(runif(2000), runif(2000), verbose = FALSE), "k\\^2")
+})
